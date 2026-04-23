@@ -310,141 +310,257 @@ function addUploadedLayerToPanel(name, color, count) {
 }
 
 // ─── ███ SHAPEFILE UPLOAD — REAL IMPLEMENTATION ███ ──────
-const LAYER_COLORS = ['#EF4444','#F59E0B','#10B981','#8B5CF6','#06B6D4','#EC4899','#F97316'];
+const LAYER_COLORS = ['#EF4444','#F59E0B','#10B981','#8B5CF6','#06B6D4','#EC4899','#F97316','#3B82F6'];
 let colorIdx = 0;
 
 function handleFilesInline(files) { processFiles(files, false); }
 
+// ── Read file as ArrayBuffer or Text ──────────────────────
+const readBuf  = f => new Promise((res,rej) => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsArrayBuffer(f); });
+const readText = f => new Promise((res,rej) => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej; r.readAsText(f); });
+
+// ── Detect projection from .prj text ─────────────────────
+function detectProj(prjText) {
+  if (!prjText) return null;
+  const t = prjText.toUpperCase();
+
+  // Already geographic WGS84 — no reprojection needed
+  if (t.includes('GEOGCS') && t.includes('WGS_1984') && !t.includes('PROJCS')) return null;
+
+  // UTM zones common in Saudi Arabia
+  if (t.includes('UTM_ZONE_37') || t.includes('ZONE_37'))
+    return '+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs';
+  if (t.includes('UTM_ZONE_38') || t.includes('ZONE_38'))
+    return '+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs';
+  if (t.includes('UTM_ZONE_36') || t.includes('ZONE_36'))
+    return '+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs';
+  if (t.includes('UTM_ZONE_39') || t.includes('ZONE_39'))
+    return '+proj=utm +zone=39 +datum=WGS84 +units=m +no_defs';
+
+  // Arab Datum 1995 / Ain el Abd
+  if (t.includes('ARAB_DATUM') || t.includes('AIN_EL_ABD'))
+    return '+proj=utm +zone=38 +ellps=intl +towgs84=-143,-90,51,0,0,0,0 +units=m +no_defs';
+
+  // Generic projected — try to extract UTM zone number
+  const zoneMatch = t.match(/ZONE[_\s]*(\d+)/);
+  if (zoneMatch) return `+proj=utm +zone=${zoneMatch[1]} +datum=WGS84 +units=m +no_defs`;
+
+  // If it's any PROJCS, assume UTM 37N as best guess for Saudi data
+  if (t.includes('PROJCS'))
+    return '+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs';
+
+  return null;
+}
+
+// ── Reproject all coordinates in GeoJSON ─────────────────
+function reprojectGeoJSON(geojson, fromProj) {
+  if (!fromProj || typeof proj4 === 'undefined') return geojson;
+  const convert = proj4(fromProj, 'WGS84');
+
+  function reprojectCoord(coord) {
+    if (!Array.isArray(coord)) return coord;
+    if (typeof coord[0] === 'number') {
+      const [x, y] = convert.forward(coord);
+      return coord.length > 2 ? [x, y, coord[2]] : [x, y];
+    }
+    return coord.map(reprojectCoord);
+  }
+
+  function reprojectGeom(geom) {
+    if (!geom || !geom.coordinates) return geom;
+    return { ...geom, coordinates: reprojectCoord(geom.coordinates) };
+  }
+
+  return {
+    ...geojson,
+    features: geojson.features.map(f => ({
+      ...f,
+      geometry: reprojectGeom(f.geometry),
+    })),
+  };
+}
+
+// ── Main entry point ──────────────────────────────────────
 function processFiles(files, fromPopup) {
   if (!files || !files.length) return;
+  const arr = Array.from(files);
 
-  const arr      = Array.from(files);
-  const shpFile  = arr.find(f => f.name.toLowerCase().endsWith('.shp'));
-  const dbfFile  = arr.find(f => f.name.toLowerCase().endsWith('.dbf'));
-  const geojson  = arr.find(f => f.name.toLowerCase().match(/\.(geojson|json)$/));
-  const kml      = arr.find(f => f.name.toLowerCase().endsWith('.kml'));
+  const shpFile = arr.find(f => f.name.toLowerCase().endsWith('.shp'));
+  const dbfFile = arr.find(f => f.name.toLowerCase().endsWith('.dbf'));
+  const prjFile = arr.find(f => f.name.toLowerCase().endsWith('.prj'));
+  const gjFile  = arr.find(f => f.name.toLowerCase().match(/\.(geojson|json)$/));
+  const kmlFile = arr.find(f => f.name.toLowerCase().endsWith('.kml'));
 
-  // ── GeoJSON / JSON ─────────────────────────────────────
-  if (geojson) {
-    const reader = new FileReader();
-    reader.onload = e => {
+  // ── GeoJSON ───────────────────────────────────────────
+  if (gjFile) {
+    readText(gjFile).then(txt => {
       try {
-        const gj = JSON.parse(e.target.result);
-        addGeoJSONToMap(gj, geojson.name.replace(/\.[^.]+$/, ''));
+        addGeoJSONToMap(JSON.parse(txt), gjFile.name.replace(/\.[^.]+$/, ''));
       } catch { showToast('ملف GeoJSON غير صحيح', 'error'); }
-    };
-    reader.readAsText(geojson);
+    });
     return;
   }
 
-  // ── KML ────────────────────────────────────────────────
-  if (kml) {
-    showToast('KML: جاري القراءة...', 'info');
-    const reader = new FileReader();
-    reader.onload = e => {
-      showToast('تم قراءة ملف KML بنجاح', 'success');
-      // Simplified KML parsing placeholder
-    };
-    reader.readAsText(kml);
+  // ── KML ───────────────────────────────────────────────
+  if (kmlFile) {
+    showToast('KML: سيتم دعمه قريباً', 'info');
     return;
   }
 
-  // ── Shapefile (.shp + .dbf) ────────────────────────────
-  if (!shpFile) {
-    showToast('يرجى رفع ملف .shp على الأقل', 'error');
-    return;
-  }
+  // ── Shapefile ─────────────────────────────────────────
+  if (!shpFile) { showToast('يرجى رفع ملف .shp على الأقل', 'error'); return; }
 
   showToast('جاري قراءة Shapefile...', 'info');
-  showUploadBar(fromPopup, 20);
+  showUploadBar(fromPopup, 15);
 
-  const readFile = f => new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = rej;
-    r.readAsArrayBuffer(f);
-  });
+  const jobs = [readBuf(shpFile)];
+  if (dbfFile) jobs.push(readBuf(dbfFile));
+  if (prjFile) jobs.push(readText(prjFile));
 
-  const promises = [readFile(shpFile)];
-  if (dbfFile) promises.push(readFile(dbfFile));
-
-  Promise.all(promises).then(buffers => {
-    showUploadBar(fromPopup, 60);
-
+  Promise.all(jobs).then(results => {
+    showUploadBar(fromPopup, 55);
     try {
-      // Use shpjs to parse
-      const combined = dbfFile
-        ? shp.combine([shp.parseShp(buffers[0]), shp.parseDbf(buffers[1])])
-        : { type: 'FeatureCollection', features: shp.parseShp(buffers[0]).map(g => ({ type: 'Feature', geometry: g, properties: {} })) };
+      const shpBuf = results[0];
+      const dbfBuf = dbfFile ? results[1] : null;
+      const prjTxt = prjFile ? results[dbfFile ? 2 : 1] : null;
 
-      showUploadBar(fromPopup, 90);
-      const layerName = shpFile.name.replace('.shp', '');
-      addGeoJSONToMap(combined, layerName);
+      // Parse shapefile
+      const geometries = shp.parseShp(shpBuf);
+      let features;
+
+      if (dbfBuf) {
+        const dbfData = shp.parseDbf(dbfBuf);
+        const combined = shp.combine([geometries, dbfData]);
+        features = combined.features || combined;
+      } else {
+        features = geometries.map(g => ({ type:'Feature', geometry: g, properties:{} }));
+      }
+
+      // Ensure array
+      if (!Array.isArray(features)) features = [];
+
+      showUploadBar(fromPopup, 75);
+
+      let geojson = { type: 'FeatureCollection', features };
+
+      // ── Reproject if needed ───────────────────────────
+      const fromProj = detectProj(prjTxt);
+      if (fromProj) {
+        showToast(`🔄 تحويل الإحداثيات من UTM إلى WGS84...`, 'info');
+        geojson = reprojectGeoJSON(geojson, fromProj);
+      }
+
+      showUploadBar(fromPopup, 95);
+
+      const layerName = shpFile.name.replace(/\.shp$/i, '');
+      addGeoJSONToMap(geojson, layerName);
       showUploadBar(fromPopup, 100);
-      if (fromPopup) closePopup('upload-popup');
+      if (fromPopup) setTimeout(() => closePopup('upload-popup'), 600);
 
     } catch (err) {
       showToast('خطأ في قراءة الـ Shapefile: ' + err.message, 'error');
-      console.error(err);
+      console.error('Shapefile parse error:', err);
     }
   }).catch(err => {
-    showToast('خطأ في قراءة الملف', 'error');
+    showToast('تعذّر قراءة الملف', 'error');
     console.error(err);
   });
 }
 
 function makeGeoJSONLayer(geojson, name, color) {
   return L.geoJSON(geojson, {
-    style: () => ({ color, fillColor: color, fillOpacity: 0.25, weight: 2, opacity: 0.9 }),
+    style: () => ({
+      color,
+      fillColor: color,
+      fillOpacity: 0.35,
+      weight: 3,
+      opacity: 1,
+    }),
     pointToLayer: (_feat, latlng) => L.circleMarker(latlng, {
-      radius: 7, fillColor: color, color: '#fff', weight: 1.5, fillOpacity: 0.85,
+      radius: 10,
+      fillColor: color,
+      color: '#ffffff',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.95,
     }),
     onEachFeature: (feature, layer) => {
       const props = feature.properties || {};
-      const rows  = Object.entries(props).slice(0, 10)
-        .map(([k, v]) => `<div class="feature-attr"><span class="feature-attr-key">${k}</span><span class="feature-attr-val">${v ?? '—'}</span></div>`)
-        .join('');
+      const rows  = Object.entries(props).slice(0, 12)
+        .map(([k, v]) => `<div class="feature-attr">
+          <span class="feature-attr-key">${k}</span>
+          <span class="feature-attr-val">${v ?? '—'}</span>
+        </div>`).join('');
       layer.bindPopup(`<div class="feature-popup">
         <div class="feature-popup-title">📌 ${name}</div>
         ${rows || '<div class="feature-attr"><span class="feature-attr-key">لا توجد خصائص</span></div>'}
-      </div>`, { maxWidth: 320 });
+      </div>`, { maxWidth: 340 });
+
+      layer.on('mouseover', function() { this.setStyle({ weight: 5, fillOpacity: 0.6 }); });
+      layer.on('mouseout',  function() { this.setStyle({ weight: 3, fillOpacity: 0.35 }); });
     },
   });
 }
 
 function addGeoJSONToMap(geojson, name) {
-  const color     = LAYER_COLORS[colorIdx++ % LAYER_COLORS.length];
-  const featCount = geojson.features ? geojson.features.length : '?';
+  // تحقق من وجود معالم
+  if (!geojson || !geojson.features || geojson.features.length === 0) {
+    showToast('الملف لا يحتوي على معالم قابلة للعرض', 'error');
+    return;
+  }
 
-  // ── Create a SEPARATE layer instance per map ──────────
+  const color     = LAYER_COLORS[colorIdx++ % LAYER_COLORS.length];
+  const featCount = geojson.features.length;
+
+  // ── أضف طبقة مستقلة لكل خريطة مباشرةً ──────────────
   const layersByMap = {};
-  let   boundsRef   = null;
+  let boundsRef = null;
 
   ['dashboard', 'main'].forEach(key => {
     const map = STATE.maps[key];
     if (!map) return;
-    const lyr = makeGeoJSONLayer(geojson, name, color);  // NEW instance each time
-    if (!map._uploadedGroup) map._uploadedGroup = L.layerGroup().addTo(map);
-    map._uploadedGroup.addLayer(lyr);
+
+    const lyr = makeGeoJSONLayer(geojson, name, color);
+    lyr.addTo(map);          // مباشرة على الخريطة — ليس عبر layerGroup
     layersByMap[key] = lyr;
+
     if (!boundsRef) {
-      try { const b = lyr.getBounds(); if (b.isValid()) boundsRef = b; } catch {}
+      try {
+        const b = lyr.getBounds();
+        if (b.isValid()) boundsRef = b;
+      } catch(e) { console.warn('getBounds:', e); }
     }
   });
 
-  // ── Fly map to data ───────────────────────────────────
-  const flyMap = STATE.maps[STATE.currentPage] || STATE.maps.dashboard || STATE.maps.main;
-  if (flyMap && boundsRef) {
-    flyMap.flyToBounds(boundsRef, { padding: [50, 50], maxZoom: 14, duration: 1.5 });
+  // ── طِر إلى موقع البيانات ─────────────────────────────
+  const activeMap = STATE.maps[STATE.currentPage] || STATE.maps.dashboard || STATE.maps.main;
+  if (activeMap && boundsRef) {
+    try {
+      activeMap.flyToBounds(boundsRef, { padding:[60,60], maxZoom:16, duration:1.2 });
+    } catch(e) { console.warn('flyToBounds:', e); }
+  } else {
+    // fallback: أظهر أول معلم
+    try {
+      const first = geojson.features[0].geometry;
+      if (first && activeMap) {
+        let lat, lng;
+        if (first.type === 'Point') { [lng,lat] = first.coordinates; }
+        else if (first.coordinates) {
+          const c = first.coordinates.flat(Infinity);
+          lng = c[0]; lat = c[1];
+        }
+        if (lat && lng) activeMap.setView([lat,lng], 13);
+      }
+    } catch {}
   }
 
-  // ── UI updates ────────────────────────────────────────
+  // ── تحديث الواجهة ────────────────────────────────────
   addUploadedLayerToPanel(name, color, featCount);
   addRowToDataTable(name, geojson, color);
   STATE.uploadedLayers.push({ name, geojson, color, layersByMap });
 
   showToast(`✅ تم رفع "${name}" — ${featCount} معلم`, 'success');
-  setTimeout(() => showToast('انتقل إلى "عرض الخريطة" لرؤية الطبقة كاملاً', 'info'), 1800);
+  setTimeout(() => showToast('💡 انتقل لـ "عرض الخريطة" لرؤية الطبقة كاملة', 'info'), 2000);
 
   updateAttrTable(geojson, name);
 }
@@ -488,18 +604,17 @@ function flyToLayer(name) {
   setTimeout(() => {
     const map = STATE.maps.main;
     if (!map) return;
-    // إذا لم تكن الطبقة موجودة في خريطة map بعد، أضفها الآن
+    // أضف الطبقة لخريطة map إذا لم تكن موجودة
     if (!entry.layersByMap.main) {
       const lyr = makeGeoJSONLayer(entry.geojson, entry.name, entry.color);
-      if (!map._uploadedGroup) map._uploadedGroup = L.layerGroup().addTo(map);
-      map._uploadedGroup.addLayer(lyr);
+      lyr.addTo(map);
       entry.layersByMap.main = lyr;
     }
     try {
-      const bounds = entry.layersByMap.main.getBounds();
-      if (bounds.isValid()) map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-    } catch {}
-  }, 400);
+      const b = entry.layersByMap.main.getBounds();
+      if (b.isValid()) map.flyToBounds(b, { padding:[60,60], maxZoom:16, duration:1.2 });
+    } catch(e) { console.warn(e); }
+  }, 500);
 }
 
 function updateAttrTable(geojson, name) {
