@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GeoVision Pro — منصة GIS السحابية</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="libs/leaflet/leaflet.css"/>
+<script src="libs/leaflet/leaflet.js"></script>
+<script src="libs/chartjs/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     AUTH PAGE
+═══════════════════════════════════════════════════════ -->
+<div id="auth-page">
+  <div class="auth-bg"></div>
+  <div class="auth-grid"></div>
+
+  <!-- Floating orbs -->
+  <div style="position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,0.06),transparent);top:-100px;right:-100px;pointer-events:none"></div>
+  <div style="position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(6,182,212,0.05),transparent);bottom:-50px;left:-50px;pointer-events:none"></div>
+
+  <div class="auth-card">
+    <!-- Logo -->
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🌍</div>
+      <div>
+        <div class="auth-logo-text">GeoVision Pro</div>
+        <div class="auth-logo-sub">منصة GIS السحابية المتكاملة</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">تسجيل الدخول</button>
+      <button class="auth-tab" data-tab="register">إنشاء حساب</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label class="form-label">البريد الإلكتروني</label>
+        <input id="login-email" class="form-input" type="email" placeholder="admin@geovision.sa" value="admin@geovision.sa">
+      </div>
+      <div class="form-group">
+        <label class="form-label">كلمة المرور</label>
+        <input id="login-pass" class="form-input" type="password" placeholder="••••••••" value="password">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#94A3B8;cursor:pointer">
+          <input type="checkbox" style="accent-color:#3B82F6"> تذكرني
+        </label>
+        <a href="#" style="font-size:13px;color:#60A5FA;text-decoration:none">نسيت كلمة المرور؟</a>
+      </div>
+      <button id="btn-login" class="btn btn-primary btn-full btn-lg">🔐 تسجيل الدخول</button>
+
+      <div style="margin:20px 0;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+        <span style="font-size:12px;color:#475569">أو</span>
+        <div style="flex:1;height:1px;background:rgba(255,255,255,0.06)"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn btn-ghost" onclick="showToast('تسجيل الدخول بـ Google قريباً','info')">🔵 Google</button>
+        <button class="btn btn-ghost" onclick="showToast('تسجيل الدخول بـ Microsoft قريباً','info')">🟦 Microsoft</button>
+      </div>
+    </div>
+
+    <!-- Register Form -->
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label class="form-label">الاسم الكامل</label>
+        <input id="reg-name" class="form-input" type="text" placeholder="محمد الأحمد">
+      </div>
+      <div class="form-group">
+        <label class="form-label">البريد الإلكتروني</label>
+        <input id="reg-email" class="form-input" type="email" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">المؤسسة / الشركة</label>
+        <input class="form-input" type="text" placeholder="وزارة البلديات">
+      </div>
+      <div class="form-group">
+        <label class="form-label">كلمة المرور</label>
+        <input class="form-input" type="password" placeholder="8 أحرف على الأقل">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#94A3B8;cursor:pointer">
+          <input type="checkbox" style="accent-color:#3B82F6;margin-top:2px">
+          أوافق على <a href="#" style="color:#60A5FA">شروط الاستخدام</a> و <a href="#" style="color:#60A5FA">سياسة الخصوصية</a>
+        </label>
+      </div>
+      <button id="btn-register" class="btn btn-primary btn-full btn-lg">✨ إنشاء الحساب</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ─── SIDEBAR ───────────────────────────────────────── -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">🌍</div>
+        <div class="logo-text">
+          <div class="logo-name">GeoVision Pro</div>
+          <div class="logo-tagline">GIS Cloud Platform</div>
+        </div>
+      </div>
+      <button class="sidebar-toggle" id="sidebar-toggle">
+        <span id="toggle-icon">‹</span>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">الرئيسية</div>
+        <div class="nav-item active" data-page="dashboard">
+          <div class="nav-icon">📊</div>
+          <span class="nav-label">لوحة التحكم</span>
+        </div>
+        <div class="nav-item" data-page="map">
+          <div class="nav-icon">🗺️</div>
+          <span class="nav-label">عرض الخريطة</span>
+        </div>
+        <div class="nav-item" data-page="analytics">
+          <div class="nav-icon">📈</div>
+          <span class="nav-label">التحليلات</span>
+          <span class="nav-badge">جديد</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">إدارة</div>
+        <div class="nav-item" data-page="data">
+          <div class="nav-icon">🗄️</div>
+          <span class="nav-label">البيانات</span>
+        </div>
+        <div class="nav-item" data-page="projects">
+          <div class="nav-icon">📁</div>
+          <span class="nav-label">المشاريع</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">النظام</div>
+        <div class="nav-item" data-page="settings">
+          <div class="nav-icon">⚙️</div>
+          <span class="nav-label">الإعدادات</span>
+        </div>
+        <div class="nav-item" onclick="logout()">
+          <div class="nav-icon">🚪</div>
+          <span class="nav-label">تسجيل الخروج</span>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar">أح</div>
+        <div class="user-info">
+          <div class="user-name">أحمد الغامدي</div>
+          <div class="user-role">مدير النظام</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── MAIN CONTENT ──────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div style="flex:1">
+        <div id="topbar-title" class="topbar-title">لوحة التحكم</div>
+        <div id="topbar-subtitle" class="topbar-subtitle" style="font-size:12px;color:#475569">نظرة عامة على البيانات الجغرافية</div>
+      </div>
+
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="بحث في البيانات والطبقات...">
+      </div>
+
+      <div class="topbar-actions">
+        <button class="icon-btn" onclick="showToast('3 إشعارات جديدة','info')" title="الإشعارات">
+          🔔
+          <div class="notif-dot"></div>
+        </button>
+        <button class="icon-btn" onclick="showToast('مزامنة البيانات...','info')" title="مزامنة">🔄</button>
+        <button class="icon-btn" onclick="navigateTo('settings')" title="الإعدادات">⚙️</button>
+        <button class="btn btn-primary btn-sm" onclick="openPopup('upload-popup')">+ رفع بيانات</button>
+      </div>
+    </header>
+
+    <!-- ═══ PAGE: DASHBOARD ═══════════════════════════════ -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-body" style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- KPI Row -->
+        <div class="grid grid-5" style="gap:12px">
+          <div class="kpi-card" style="--kpi-color:#3B82F6;--kpi-rgb:59,130,246">
+            <div class="kpi-top">
+              <div class="kpi-icon">🗂️</div>
+              <div class="kpi-trend up">▲ 12%</div>
+            </div>
+            <div class="kpi-value">10,864</div>
+            <div class="kpi-label">إجمالي المعالم</div>
+            <div class="kpi-sub">عبر 6 طبقات نشطة</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#10B981;--kpi-rgb:16,185,129">
+            <div class="kpi-top">
+              <div class="kpi-icon">🌐</div>
+              <div class="kpi-trend up">▲ 4</div>
+            </div>
+            <div class="kpi-value">23</div>
+            <div class="kpi-label">المناطق النشطة</div>
+            <div class="kpi-sub">من أصل 13 منطقة</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#F59E0B;--kpi-rgb:245,158,11">
+            <div class="kpi-top">
+              <div class="kpi-icon">⚠️</div>
+              <div class="kpi-trend down">▼ 2</div>
+            </div>
+            <div class="kpi-value">7</div>
+            <div class="kpi-label">التنبيهات</div>
+            <div class="kpi-sub">3 عالية الأولوية</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#8B5CF6;--kpi-rgb:139,92,246">
+            <div class="kpi-top">
+              <div class="kpi-icon">🗺️</div>
+              <div class="kpi-trend up">▲ 2</div>
+            </div>
+            <div class="kpi-value">18</div>
+            <div class="kpi-label">مشاريع GIS</div>
+            <div class="kpi-sub">5 مشاريع نشطة</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#06B6D4;--kpi-rgb:6,182,212">
+            <div class="kpi-top">
+              <div class="kpi-icon">💾</div>
+              <div class="kpi-trend neutral">— ثابت</div>
+            </div>
+            <div class="kpi-value">84.2 GB</div>
+            <div class="kpi-label">البيانات المخزّنة</div>
+            <div class="kpi-sub">من 500 GB المتاحة</div>
+          </div>
+        </div>
+
+        <!-- Map + Side Panel -->
+        <div class="dashboard-layout" style="flex:1;min-height:460px">
+          <!-- Map -->
+          <div class="map-container" style="position:relative">
+            <div id="dashboard-map" style="width:100%;height:100%;min-height:460px"></div>
+
+            <!-- Loading overlay -->
+            <div id="db-map-loading" class="map-loading">
+              <div class="spinner"></div>
+              <span style="font-size:13px;color:#94A3B8">جاري تحميل الخريطة...</span>
+            </div>
+
+            <!-- Map controls -->
+            <div class="map-overlay-controls">
+              <div class="map-btn-group">
+                <button class="map-btn" onclick="STATE.maps.dashboard?.zoomIn()" title="تكبير">+</button>
+                <button class="map-btn" onclick="STATE.maps.dashboard?.zoomOut()" title="تصغير">−</button>
+              </div>
+              <div class="map-btn-group">
+                <button class="map-btn" onclick="STATE.maps.dashboard?.fitBounds([[17,34],[30,56]])" title="العودة للمنطقة الكاملة">⌂</button>
+              </div>
+              <div class="map-btn-group">
+                <button class="map-btn" onclick="showToast('وضع ملء الشاشة','info')" title="ملء الشاشة">⛶</button>
+              </div>
+            </div>
+
+            <!-- Basemap selector -->
+            <div class="basemap-selector">
+              <button class="basemap-btn active" data-basemap="dark" data-basemap-map="dashboard" onclick="changeBasemap('dark','dashboard')">🌑 داكن</button>
+              <button class="basemap-btn" data-basemap="streets" data-basemap-map="dashboard" onclick="changeBasemap('streets','dashboard')">🗺️ شوارع</button>
+              <button class="basemap-btn" data-basemap="satellite" data-basemap-map="dashboard" onclick="changeBasemap('satellite','dashboard')">🛰️ قمر صناعي</button>
+            </div>
+
+            <!-- Scale -->
+            <div class="map-scale-bar">المملكة العربية السعودية — 1:500,000</div>
+          </div>
+
+          <!-- Right widgets -->
+          <div style="display:flex;flex-direction:column;gap:12px;overflow-y:auto">
+
+            <!-- Layer panel -->
+            <div class="layer-panel" style="flex-shrink:0">
+              <div class="layer-panel-header">
+                <span class="card-title">الطبقات</span>
+                <button class="btn btn-ghost btn-sm" onclick="openPopup('upload-popup')">+ إضافة</button>
+              </div>
+              <div class="layer-panel-body" id="layer-list"></div>
+            </div>
+
+            <!-- Pie chart -->
+            <div class="card" style="flex:1;min-height:200px">
+              <div class="card-header">
+                <span class="card-title">توزيع المعالم</span>
+                <span class="text-sm text-muted">إجمالي 10,864</span>
+              </div>
+              <div class="chart-container" style="height:180px">
+                <canvas id="chart-pie"></canvas>
+              </div>
+            </div>
+
+            <!-- Bar chart -->
+            <div class="card" style="flex-shrink:0">
+              <div class="card-header">
+                <span class="card-title">الإضافات الشهرية</span>
+                <span class="text-sm text-muted">2025</span>
+              </div>
+              <div class="chart-container" style="height:140px">
+                <canvas id="chart-bar"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline Chart -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">مؤشر النشاط الجغرافي — خط الزمن</span>
+            <div class="card-actions">
+              <button class="btn btn-ghost btn-sm" onclick="exportData('PNG')">📥 تصدير</button>
+              <select class="select-input" style="font-size:12px">
+                <option>آخر 9 أشهر</option>
+                <option>آخر سنة</option>
+                <option>آخر 3 سنوات</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-container" style="height:160px">
+            <canvas id="chart-time"></canvas>
+          </div>
+        </div>
+
+        <!-- Recent activity table -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">آخر التحديثات</span>
+            <button class="btn btn-ghost btn-sm" onclick="navigateTo('data')">عرض الكل</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>الطبقة</th>
+                  <th>النوع</th>
+                  <th>المعالم</th>
+                  <th>آخر تحديث</th>
+                  <th>الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><strong style="color:#F1F5F9">🗺️ شبكة الطرق</strong></td><td><span class="badge badge-blue">خطوط</span></td><td>1,842</td><td>2025-01-15</td><td><span class="badge badge-green">نشط</span></td></tr>
+                <tr><td><strong style="color:#F1F5F9">🏢 المباني</strong></td><td><span class="badge badge-purple">مضلعات</span></td><td>5,621</td><td>2025-01-12</td><td><span class="badge badge-green">نشط</span></td></tr>
+                <tr><td><strong style="color:#F1F5F9">💧 شبكة المياه</strong></td><td><span class="badge badge-blue">خطوط</span></td><td>987</td><td>2024-12-28</td><td><span class="badge badge-orange">محدّث</span></td></tr>
+                <tr><td><strong style="color:#F1F5F9">📍 نقاط الاهتمام</strong></td><td><span class="badge badge-gray">نقاط</span></td><td>3,421</td><td>2024-12-20</td><td><span class="badge badge-green">نشط</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: MAP VIEW ════════════════════════════════ -->
+    <div id="page-map" class="page">
+      <div class="map-view-layout">
+
+        <!-- Tools bar -->
+        <div class="tools-bar">
+          <div style="font-size:11px;color:#475569;font-weight:600;margin-left:4px">أدوات الرسم:</div>
+          <button class="tool-btn" data-tool="point">📍 نقطة</button>
+          <button class="tool-btn" data-tool="line">〰️ خط</button>
+          <button class="tool-btn" data-tool="polygon">⬡ مضلع</button>
+          <div class="tool-sep"></div>
+          <div style="font-size:11px;color:#475569;font-weight:600;margin-left:4px">القياس:</div>
+          <button class="tool-btn" data-tool="measure-dist">📏 مسافة</button>
+          <button class="tool-btn" data-tool="measure-area">⬜ مساحة</button>
+          <div class="tool-sep"></div>
+          <div style="font-size:11px;color:#475569;font-weight:600;margin-left:4px">تحليل:</div>
+          <button class="tool-btn" onclick="runAnalysis('buffer')">🔵 Buffer</button>
+          <button class="tool-btn" onclick="runAnalysis('heatmap')">🌡️ Heatmap</button>
+          <button class="tool-btn" onclick="runAnalysis('query')">🔍 استعلام</button>
+          <div class="tool-sep"></div>
+          <button class="tool-btn" onclick="showToast('تم تحديد جميع المعالم','info')">☰ تحديد الكل</button>
+          <button class="tool-btn" onclick="showToast('تم مسح التحديد','info')">✕ مسح</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-primary btn-sm" onclick="openPopup('upload-popup')">+ رفع Shapefile</button>
+        </div>
+
+        <!-- Map + Layer panel -->
+        <div class="map-main-area" style="flex:1">
+          <!-- Layer panel -->
+          <div class="map-right-panel">
+            <div class="panel-section">
+              <div class="panel-section-title">الطبقات النشطة</div>
+              <div id="map-layer-list"></div>
+              <button class="btn btn-ghost btn-sm btn-full mt-2" onclick="openPopup('upload-popup')">+ إضافة طبقة</button>
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">خصائص العرض</div>
+              <div style="font-size:12px;color:#94A3B8;margin-bottom:8px">الشفافية</div>
+              <input type="range" min="0" max="100" value="85" oninput="showToast('الشفافية: '+this.value+'%','info')">
+              <div style="font-size:12px;color:#94A3B8;margin-top:12px;margin-bottom:8px">حجم النقاط</div>
+              <input type="range" min="2" max="20" value="8">
+            </div>
+
+            <div class="panel-section">
+              <div class="panel-section-title">الفلاتر</div>
+              <div class="form-group" style="margin-bottom:8px">
+                <select class="select-input" style="width:100%" onchange="showToast('تم تطبيق الفلتر','info')">
+                  <option>كل الأنواع</option>
+                  <option>مضلعات</option>
+                  <option>خطوط</option>
+                  <option>نقاط</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <input class="form-input" style="font-size:12px" placeholder="فلتر بالخاصية...">
+              </div>
+              <button class="btn btn-primary btn-sm btn-full" onclick="showToast('تم تطبيق الفلتر المكاني','success')">تطبيق الفلتر</button>
+            </div>
+
+            <div class="panel-section" style="border-bottom:none">
+              <div class="panel-section-title">معلومات الخريطة</div>
+              <div style="font-size:11px;color:#475569;line-height:1.8">
+                <div>📍 المنطقة: المملكة العربية السعودية</div>
+                <div>🔍 مستوى التكبير: 6</div>
+                <div>📐 النظام: WGS84 (EPSG:4326)</div>
+                <div>📊 معالم محمّلة: 10,864</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Map -->
+          <div style="position:relative;display:flex;flex-direction:column;overflow:hidden">
+            <div id="main-map" style="flex:1;min-height:400px"></div>
+            <div id="main-map-loading" class="map-loading">
+              <div class="spinner"></div>
+              <span style="font-size:13px;color:#94A3B8">جاري تحميل الخريطة...</span>
+            </div>
+
+            <!-- Floating controls -->
+            <div class="map-overlay-controls">
+              <div class="map-btn-group">
+                <button class="map-btn" onclick="STATE.maps.main?.zoomIn()">+</button>
+                <button class="map-btn" onclick="STATE.maps.main?.zoomOut()">−</button>
+              </div>
+              <div class="map-btn-group">
+                <button class="map-btn" onclick="STATE.maps.main?.fitBounds([[17,34],[30,56]])">⌂</button>
+                <button class="map-btn" onclick="showToast('وضع ملء الشاشة','info')">⛶</button>
+              </div>
+            </div>
+
+            <!-- Basemap -->
+            <div class="basemap-selector">
+              <button class="basemap-btn active" data-basemap="dark" data-basemap-map="main" onclick="changeBasemap('dark','main')">🌑 داكن</button>
+              <button class="basemap-btn" data-basemap="streets" data-basemap-map="main" onclick="changeBasemap('streets','main')">🗺️ شوارع</button>
+              <button class="basemap-btn" data-basemap="satellite" data-basemap-map="main" onclick="changeBasemap('satellite','main')">🛰️ قمر صناعي</button>
+            </div>
+
+            <!-- Attribute table panel -->
+            <div class="attr-panel">
+              <div class="attr-panel-header">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:13px;font-weight:600">جدول الخصائص</span>
+                  <span class="badge badge-blue">10,864 سجل</span>
+                </div>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-ghost btn-sm" onclick="exportData('CSV')">📥 CSV</button>
+                  <button class="btn btn-ghost btn-sm" onclick="exportData('GeoJSON')">📥 GeoJSON</button>
+                  <button class="btn btn-ghost btn-sm" onclick="showToast('تم إغلاق الجدول','info')">✕</button>
+                </div>
+              </div>
+              <div class="attr-panel-body">
+                <table class="data-table" style="font-size:11px">
+                  <thead>
+                    <tr>
+                      <th>FID</th><th>الاسم</th><th>النوع</th><th>المساحة (م²)</th><th>المحافظة</th><th>المنطقة</th><th>الحالة</th><th>الإحداثيات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>1</td><td>حي العليا</td><td>سكني</td><td>142,300</td><td>الرياض</td><td>الرياض</td><td><span class="badge badge-green" style="font-size:10px">نشط</span></td><td>24.7°N 46.6°E</td></tr>
+                    <tr><td>2</td><td>طريق الملك فهد</td><td>طريق رئيسي</td><td>—</td><td>الرياض</td><td>الرياض</td><td><span class="badge badge-blue" style="font-size:10px">مرصود</span></td><td>24.7°N 46.7°E</td></tr>
+                    <tr><td>3</td><td>مطار الملك خالد</td><td>بنية تحتية</td><td>8,500,000</td><td>الرياض</td><td>الرياض</td><td><span class="badge badge-green" style="font-size:10px">نشط</span></td><td>24.9°N 46.7°E</td></tr>
+                    <tr><td>4</td><td>حي الروضة</td><td>سكني</td><td>98,400</td><td>جدة</td><td>مكة</td><td><span class="badge badge-orange" style="font-size:10px">تحت المراجعة</span></td><td>21.5°N 39.2°E</td></tr>
+                    <tr><td>5</td><td>كورنيش جدة</td><td>ساحلي</td><td>—</td><td>جدة</td><td>مكة</td><td><span class="badge badge-green" style="font-size:10px">نشط</span></td><td>21.5°N 39.1°E</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <div class="status-item"><div class="status-dot green"></div>متصل بالخادم</div>
+          <div class="status-item"><div class="status-dot blue"></div>6 طبقات محمّلة</div>
+          <div class="status-item">📍 24.7136° N, 46.6753° E</div>
+          <div class="status-item">🔍 Zoom: 6</div>
+          <div class="status-item">📐 WGS84</div>
+          <div style="flex:1"></div>
+          <div class="status-item"><div class="status-dot orange"></div>آخر تحديث: منذ دقيقتين</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: DATA ════════════════════════════════════ -->
+    <div id="page-data" class="page">
+      <div class="page-body">
+
+        <!-- Upload Zone -->
+        <div id="upload-zone" class="upload-zone mb-4" onclick="document.getElementById('file-input-inline').click()">
+          <input type="file" id="file-input-inline" multiple accept=".shp,.shx,.dbf,.prj,.geojson,.json,.kml,.gpkg" style="display:none" onchange="handleFilesInline(this.files)">
+          <div class="upload-icon">📂</div>
+          <div class="upload-title">اسحب وأفلت ملفات Shapefile هنا</div>
+          <div class="upload-sub">أو انقر للتصفح واختيار الملفات</div>
+          <div class="upload-formats">
+            <span class="format-tag">.shp</span>
+            <span class="format-tag">.shx</span>
+            <span class="format-tag">.dbf</span>
+            <span class="format-tag">.prj</span>
+            <span class="format-tag">.geojson</span>
+            <span class="format-tag">.kml</span>
+            <span class="format-tag">.gpkg</span>
+          </div>
+        </div>
+
+        <!-- Upload Progress -->
+        <div id="upload-progress-wrap" style="display:none;margin-bottom:16px">
+          <div class="card card-sm" style="display:flex;align-items:center;gap:12px">
+            <span>📤</span>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;margin-bottom:6px">جاري رفع الملف...</div>
+              <div class="progress-bar"><div class="progress-fill" id="upload-progress-fill" style="width:0%"></div></div>
+            </div>
+            <span id="upload-progress-text" style="font-size:12px;color:#60A5FA;font-weight:600">0%</span>
+          </div>
+        </div>
+
+        <!-- Data Tabs -->
+        <div id="data-tabs">
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="all" onclick="switchTab('data-tabs','all')">كل الطبقات</button>
+            <button class="tab-btn" data-tab="vectors" onclick="switchTab('data-tabs','vectors')">بيانات متجهية</button>
+            <button class="tab-btn" data-tab="rasters" onclick="switchTab('data-tabs','rasters')">بيانات نقطية</button>
+            <button class="tab-btn" data-tab="shared" onclick="switchTab('data-tabs','shared')">مشتركة</button>
+          </div>
+
+          <!-- All tab -->
+          <div id="tab-all" class="tab-content active">
+            <div class="card p-0">
+              <!-- Table toolbar -->
+              <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <div class="search-bar" style="width:220px">
+                  <span class="search-icon">🔍</span>
+                  <input type="text" placeholder="بحث في الطبقات..." oninput="filterTable(this.value)">
+                </div>
+                <select class="select-input">
+                  <option>كل الأنواع</option>
+                  <option>مضلعات</option>
+                  <option>خطوط</option>
+                  <option>نقاط</option>
+                </select>
+                <div style="flex:1"></div>
+                <button class="btn btn-ghost btn-sm" onclick="exportData('Excel')">📊 Excel</button>
+                <button class="btn btn-ghost btn-sm" onclick="exportData('GeoJSON')">🗂️ GeoJSON</button>
+                <button class="btn btn-danger btn-sm" onclick="showToast('تم حذف العناصر المحددة','success')">🗑️ حذف</button>
+              </div>
+
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th><input type="checkbox" style="accent-color:#3B82F6"></th>
+                      <th>اسم الطبقة</th>
+                      <th>النوع</th>
+                      <th>عدد المعالم</th>
+                      <th>الحجم</th>
+                      <th>تاريخ الرفع</th>
+                      <th>الحالة</th>
+                      <th>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="data-tbody"></tbody>
+                </table>
+              </div>
+
+              <!-- Pagination -->
+              <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:12px;color:#475569">عرض 1–6 من 6 سجلات</span>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-ghost btn-sm">‹</button>
+                  <button class="btn btn-primary btn-sm">1</button>
+                  <button class="btn btn-ghost btn-sm">›</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-vectors" class="tab-content">
+            <div class="empty-state">
+              <div class="empty-icon">🗺️</div>
+              <div class="empty-title">البيانات المتجهية</div>
+              <div class="empty-sub">عرض الطبقات النقطية (Raster) هنا</div>
+            </div>
+          </div>
+
+          <div id="tab-rasters" class="tab-content">
+            <div class="empty-state">
+              <div class="empty-icon">🌄</div>
+              <div class="empty-title">البيانات النقطية</div>
+              <div class="empty-sub">ارفع ملفات GeoTIFF لعرضها هنا</div>
+            </div>
+          </div>
+
+          <div id="tab-shared" class="tab-content">
+            <div class="empty-state">
+              <div class="empty-icon">🤝</div>
+              <div class="empty-title">الطبقات المشتركة</div>
+              <div class="empty-sub">الطبقات المشتركة مع فريقك ستظهر هنا</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: ANALYTICS ══════════════════════════════ -->
+    <div id="page-analytics" class="page">
+      <div class="page-body">
+
+        <!-- Filters + Export -->
+        <div class="card card-sm mb-4" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:600">فلتر التحليل:</span>
+          <select class="select-input">
+            <option>كل المناطق</option>
+            <option>الرياض</option>
+            <option>جدة</option>
+            <option>الدمام</option>
+          </select>
+          <select class="select-input">
+            <option>2025</option>
+            <option>2024</option>
+            <option>2023</option>
+          </select>
+          <select class="select-input">
+            <option>كل الطبقات</option>
+            <option>المباني</option>
+            <option>الطرق</option>
+            <option>الأراضي</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="showToast('تم تطبيق الفلاتر','success')">تطبيق</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-ghost btn-sm" onclick="exportData('PDF')">📄 PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportData('Excel')">📊 Excel</button>
+        </div>
+
+        <!-- KPI row -->
+        <div class="grid grid-4 mb-4">
+          <div class="kpi-card" style="--kpi-color:#3B82F6"><div class="kpi-top"><div class="kpi-icon">📊</div><div class="kpi-trend up">▲ 18%</div></div><div class="kpi-value">2,410</div><div class="kpi-label">تحليلات منفّذة</div></div>
+          <div class="kpi-card" style="--kpi-color:#10B981"><div class="kpi-top"><div class="kpi-icon">🎯</div><div class="kpi-trend up">▲ 5%</div></div><div class="kpi-value">94.2%</div><div class="kpi-label">دقة البيانات</div></div>
+          <div class="kpi-card" style="--kpi-color:#F59E0B"><div class="kpi-top"><div class="kpi-icon">⏱️</div><div class="kpi-trend down">▼ 12%</div></div><div class="kpi-value">1.8s</div><div class="kpi-label">متوسط وقت الاستجابة</div></div>
+          <div class="kpi-card" style="--kpi-color:#8B5CF6"><div class="kpi-top"><div class="kpi-icon">🔗</div><div class="kpi-trend up">▲ 3</div></div><div class="kpi-value">847</div><div class="kpi-label">ارتباطات مكانية</div></div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-2 mb-4" style="gap:16px">
+          <div class="chart-card">
+            <div class="chart-title">الكثافة السكانية حسب المدينة</div>
+            <div class="chart-sub">كثافة السكان / كم² — 2025</div>
+            <div style="height:250px"><canvas id="analytics-bar"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">توزيع استخدام الأراضي</div>
+            <div class="chart-sub">نسبة كل نوع من إجمالي المساحة</div>
+            <div style="height:250px"><canvas id="analytics-pie"></canvas></div>
+          </div>
+        </div>
+
+        <div class="grid grid-2 mb-4" style="gap:16px">
+          <div class="chart-card">
+            <div class="chart-title">تطور المساحة الحضرية والخضراء</div>
+            <div class="chart-sub">2018 – 2025 (كم²)</div>
+            <div style="height:220px"><canvas id="analytics-line"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">مقارنة مؤشرات المدن</div>
+            <div class="chart-sub">الرياض مقابل جدة</div>
+            <div style="height:220px"><canvas id="analytics-radar"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Time slider -->
+        <div class="time-slider-wrap mb-4">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div>
+              <div style="font-size:14px;font-weight:600">⏳ تحليل الزمن</div>
+              <div style="font-size:12px;color:#475569">تصفح البيانات عبر الزمن</div>
+            </div>
+            <div style="font-size:13px;font-weight:600;color:#60A5FA" id="time-year">2025</div>
+          </div>
+          <input type="range" min="2010" max="2025" value="2025" id="time-range"
+            oninput="document.getElementById('time-year').textContent=this.value;showToast('عرض بيانات عام '+this.value,'info')">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#475569;margin-top:4px">
+            <span>2010</span><span>2015</span><span>2020</span><span>2025</span>
+          </div>
+        </div>
+
+        <!-- Spatial Analysis tools -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">🔬 أدوات التحليل المكاني</span>
+          </div>
+          <div class="analysis-panel">
+            <div class="analysis-tool" onclick="runAnalysis('buffer')">
+              <div class="analysis-icon">🔵</div>
+              <div><div class="analysis-name">تحليل المنطقة المحيطة (Buffer)</div><div class="analysis-desc">إنشاء منطقة محيطة بمعالم محددة بمسافة معينة</div></div>
+              <button class="btn btn-ghost btn-sm">تشغيل</button>
+            </div>
+            <div class="analysis-tool" onclick="runAnalysis('nearest')">
+              <div class="analysis-icon">🎯</div>
+              <div><div class="analysis-name">أقرب جار (Nearest Neighbor)</div><div class="analysis-desc">تحليل توزيع النقاط وحساب مؤشر الجوار</div></div>
+              <button class="btn btn-ghost btn-sm">تشغيل</button>
+            </div>
+            <div class="analysis-tool" onclick="runAnalysis('heatmap')">
+              <div class="analysis-icon">🌡️</div>
+              <div><div class="analysis-name">خريطة الكثافة الحرارية (Heatmap)</div><div class="analysis-desc">تصور كثافة توزيع المعالم على الخريطة</div></div>
+              <button class="btn btn-ghost btn-sm">تشغيل</button>
+            </div>
+            <div class="analysis-tool" onclick="runAnalysis('density')">
+              <div class="analysis-icon">📊</div>
+              <div><div class="analysis-name">تحليل الكثافة (Density Analysis)</div><div class="analysis-desc">حساب كثافة المعالم في وحدة مساحة محددة</div></div>
+              <button class="btn btn-ghost btn-sm">تشغيل</button>
+            </div>
+            <div class="analysis-tool" onclick="runAnalysis('query')">
+              <div class="analysis-icon">🔍</div>
+              <div><div class="analysis-name">استعلام مكاني (Spatial Query)</div><div class="analysis-desc">تحديد المعالم بناءً على علاقتها المكانية</div></div>
+              <button class="btn btn-ghost btn-sm">تشغيل</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: PROJECTS ════════════════════════════════ -->
+    <div id="page-projects" class="page">
+      <div class="page-body">
+
+        <!-- Header actions -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <div style="font-size:16px;font-weight:700">مشاريع GIS</div>
+            <div style="font-size:12px;color:#475569">6 مشاريع — 5 نشطة</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <select class="select-input"><option>كل الفئات</option><option>تحليل مكاني</option><option>إدارة أصول</option><option>تخطيط عمراني</option></select>
+            <button class="btn btn-primary" onclick="openPopup('new-project-popup')">+ مشروع جديد</button>
+          </div>
+        </div>
+
+        <!-- Projects grid -->
+        <div class="grid grid-3" id="projects-grid"></div>
+
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: SETTINGS ════════════════════════════════ -->
+    <div id="page-settings" class="page">
+      <div class="page-body">
+        <div class="grid grid-2" style="gap:20px;max-width:900px">
+
+          <!-- Profile -->
+          <div class="card">
+            <div class="card-title mb-4">👤 الملف الشخصي</div>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+              <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700">أح</div>
+              <div>
+                <div style="font-size:15px;font-weight:700">أحمد الغامدي</div>
+                <div style="font-size:12px;color:#475569">مدير النظام — GeoVision Pro</div>
+                <button class="btn btn-ghost btn-sm mt-1" onclick="showToast('رفع صورة الملف الشخصي','info')">تغيير الصورة</button>
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">الاسم الكامل</label><input class="form-input" value="أحمد الغامدي"></div>
+            <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input class="form-input" type="email" value="ahmed@geovision.sa"></div>
+            <div class="form-group"><label class="form-label">المؤسسة</label><input class="form-input" value="وزارة البلديات والإسكان"></div>
+            <button class="btn btn-primary btn-sm" onclick="showToast('تم حفظ التغييرات','success')">حفظ التغييرات</button>
+          </div>
+
+          <!-- App settings -->
+          <div class="card">
+            <div class="card-title mb-4">⚙️ إعدادات المنصة</div>
+
+            <div class="settings-row">
+              <div><div class="settings-label">اللغة والاتجاه</div><div class="settings-sub">RTL (العربية) / LTR (الإنجليزية)</div></div>
+              <button class="btn btn-ghost btn-sm" onclick="toggleRTL()">تبديل الاتجاه</button>
+            </div>
+
+            <div class="settings-row">
+              <div><div class="settings-label">الوضع المظلم</div><div class="settings-sub">Dark Mode مفعّل افتراضياً</div></div>
+              <div class="toggle on" onclick="toggleDarkMode()"></div>
+            </div>
+
+            <div class="settings-row">
+              <div><div class="settings-label">نظام الإسقاط الافتراضي</div><div class="settings-sub">إحداثيات الخريطة</div></div>
+              <select class="select-input">
+                <option>WGS84 (EPSG:4326)</option>
+                <option>UTM Zone 37N</option>
+                <option>UTM Zone 38N</option>
+                <option>Arab Datum 1995</option>
+              </select>
+            </div>
+
+            <div class="settings-row">
+              <div><div class="settings-label">خريطة الأساس الافتراضية</div><div class="settings-sub">نوع الخريطة الخلفية</div></div>
+              <select class="select-input">
+                <option>داكن (Dark)</option>
+                <option>الشوارع (Streets)</option>
+                <option>قمر صناعي (Satellite)</option>
+              </select>
+            </div>
+
+            <div class="settings-row">
+              <div><div class="settings-label">وحدات القياس</div><div class="settings-sub">المسافة والمساحة</div></div>
+              <select class="select-input">
+                <option>متري (م، كم)</option>
+                <option>إمبريالي (قدم، ميل)</option>
+              </select>
+            </div>
+
+            <div class="settings-row" style="border-bottom:none">
+              <div><div class="settings-label">الإشعارات التلقائية</div><div class="settings-sub">تنبيهات التحديث والمشاركة</div></div>
+              <div class="toggle on"></div>
+            </div>
+
+            <button class="btn btn-primary btn-sm mt-3" onclick="showToast('تم حفظ الإعدادات','success')">حفظ الإعدادات</button>
+          </div>
+
+          <!-- User management -->
+          <div class="card col-span-2">
+            <div class="card-header">
+              <span class="card-title">👥 إدارة المستخدمين</span>
+              <button class="btn btn-primary btn-sm" onclick="openPopup('add-user-popup')">+ إضافة مستخدم</button>
+            </div>
+            <table class="data-table">
+              <thead><tr><th>المستخدم</th><th>البريد الإلكتروني</th><th>الدور</th><th>آخر دخول</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#8B5CF6,#3B82F6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">أح</div><strong style="color:#F1F5F9">أحمد الغامدي</strong></div></td>
+                  <td>ahmed@geovision.sa</td>
+                  <td><span class="badge badge-red">مدير</span></td>
+                  <td>الآن</td>
+                  <td><span class="badge badge-green">نشط</span></td>
+                  <td><button class="btn btn-ghost btn-sm">تحرير</button></td>
+                </tr>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#06B6D4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">سا</div><strong style="color:#F1F5F9">سارة المطيري</strong></div></td>
+                  <td>sara@geovision.sa</td>
+                  <td><span class="badge badge-blue">محلل</span></td>
+                  <td>منذ ساعة</td>
+                  <td><span class="badge badge-green">نشط</span></td>
+                  <td><button class="btn btn-ghost btn-sm">تحرير</button></td>
+                </tr>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:8px"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10B981,#06B6D4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">عم</div><strong style="color:#F1F5F9">عمر الشهري</strong></div></td>
+                  <td>omar@geovision.sa</td>
+                  <td><span class="badge badge-gray">مشاهد</span></td>
+                  <td>منذ يومين</td>
+                  <td><span class="badge badge-orange">غير نشط</span></td>
+                  <td><button class="btn btn-ghost btn-sm">تحرير</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════
+     POPUPS
+═══════════════════════════════════════════════════════ -->
+
+<!-- Upload Popup -->
+<div id="upload-popup" class="popup-overlay" onclick="if(event.target===this)closePopup('upload-popup')">
+  <div class="popup">
+    <div class="popup-header">
+      <div class="popup-title">📂 رفع Shapefile</div>
+      <button class="close-btn" onclick="closePopup('upload-popup')">✕</button>
+    </div>
+
+    <div class="upload-zone" style="padding:28px" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" multiple accept=".shp,.shx,.dbf,.prj,.geojson,.kml" style="display:none">
+      <div class="upload-icon">📂</div>
+      <div class="upload-title">اسحب ملفات Shapefile</div>
+      <div class="upload-sub">يجب رفع الملفات معاً: .shp + .shx + .dbf + .prj</div>
+      <div class="upload-formats">
+        <span class="format-tag">.shp</span><span class="format-tag">.shx</span>
+        <span class="format-tag">.dbf</span><span class="format-tag">.prj</span>
+        <span class="format-tag">.geojson</span><span class="format-tag">.kml</span>
+      </div>
+    </div>
+
+    <div id="upload-progress-wrap-popup" style="display:none;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="progress-bar" style="flex:1"><div class="progress-fill" id="up2" style="width:0%"></div></div>
+        <span id="up2-txt" style="font-size:12px;color:#60A5FA">0%</span>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <div class="form-group"><label class="form-label">اسم الطبقة</label><input class="form-input" placeholder="مثل: طبقة الطرق — الرياض 2025"></div>
+      <div class="form-group"><label class="form-label">الوصف</label><input class="form-input" placeholder="وصف مختصر للبيانات"></div>
+      <div class="form-group">
+        <label class="form-label">نظام الإسقاط المصدر</label>
+        <select class="select-input" style="width:100%">
+          <option>WGS84 (EPSG:4326)</option>
+          <option>UTM Zone 37N (EPSG:32637)</option>
+          <option>UTM Zone 38N (EPSG:32638)</option>
+          <option>Arab Datum 1995</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" onclick="closePopup('upload-popup')">إلغاء</button>
+      <button class="btn btn-primary" onclick="startUploadPopup()">📤 رفع وتحويل إلى GeoJSON</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Project Popup -->
+<div id="new-project-popup" class="popup-overlay" onclick="if(event.target===this)closePopup('new-project-popup')">
+  <div class="popup">
+    <div class="popup-header">
+      <div class="popup-title">📁 مشروع GIS جديد</div>
+      <button class="close-btn" onclick="closePopup('new-project-popup')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">اسم المشروع</label><input class="form-input" placeholder="مثل: تحليل النمو الحضري 2025"></div>
+    <div class="form-group"><label class="form-label">الوصف</label><textarea class="form-input" rows="3" placeholder="اكتب وصفاً للمشروع..." style="resize:vertical"></textarea></div>
+    <div class="form-group">
+      <label class="form-label">الفئة</label>
+      <select class="select-input" style="width:100%">
+        <option>تحليل مكاني</option>
+        <option>إدارة أصول</option>
+        <option>تقييم مخاطر</option>
+        <option>تخطيط عمراني</option>
+        <option>استخدام الأراضي</option>
+        <option>ديموغرافيا</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الصلاحيات</label>
+      <select class="select-input" style="width:100%">
+        <option>خاص (أنا فقط)</option>
+        <option>مشترك مع الفريق</option>
+        <option>عام</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" onclick="closePopup('new-project-popup')">إلغاء</button>
+      <button class="btn btn-primary" onclick="createProject()">✨ إنشاء المشروع</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Popup -->
+<div id="add-user-popup" class="popup-overlay" onclick="if(event.target===this)closePopup('add-user-popup')">
+  <div class="popup">
+    <div class="popup-header">
+      <div class="popup-title">👤 إضافة مستخدم جديد</div>
+      <button class="close-btn" onclick="closePopup('add-user-popup')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">الاسم الكامل</label><input class="form-input" placeholder="اسم المستخدم"></div>
+    <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input class="form-input" type="email" placeholder="user@company.com"></div>
+    <div class="form-group">
+      <label class="form-label">الدور</label>
+      <select class="select-input" style="width:100%">
+        <option>مشاهد (Viewer)</option>
+        <option>محلل (Analyst)</option>
+        <option>مدير (Admin)</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn btn-ghost" onclick="closePopup('add-user-popup')">إلغاء</button>
+      <button class="btn btn-primary" onclick="closePopup('add-user-popup');showToast('تم إرسال دعوة للمستخدم','success')">📨 إرسال دعوة</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="js/app.js"></script>
+<script>
+  // Extra inline helpers
+  function startUploadPopup() {
+    const bar = document.getElementById('up2');
+    const txt = document.getElementById('up2-txt');
+    const wrap = document.getElementById('upload-progress-wrap-popup');
+    wrap.style.display = 'block';
+    let p = 0;
+    const iv = setInterval(() => {
+      p += Math.random() * 18;
+      if (p >= 100) { p = 100; clearInterval(iv); closePopup('upload-popup'); showToast('تم رفع الملف وتحويله إلى GeoJSON!', 'success'); }
+      bar.style.width = p.toFixed(0) + '%';
+      txt.textContent = p.toFixed(0) + '%';
+    }, 180);
+  }
+
+  function handleFilesInline(files) {
+    if (!files.length) return;
+    showToast('جاري رفع: ' + Array.from(files).map(f => f.name).join(', '), 'info');
+    simulateUpload();
+  }
+
+  function createProject() {
+    closePopup('new-project-popup');
+    showToast('تم إنشاء المشروع بنجاح!', 'success');
+  }
+
+  function filterTable(val) { /* client-side filter placeholder */ }
+
+  // Init upload zone after page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    const uz = document.getElementById('upload-zone');
+    if (uz) {
+      uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragging'); });
+      uz.addEventListener('dragleave', () => uz.classList.remove('dragging'));
+      uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('dragging'); handleFilesInline(e.dataTransfer.files); });
+    }
+  });
+</script>
+</body>
+</html>
