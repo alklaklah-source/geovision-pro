@@ -993,6 +993,14 @@ input[type=range]::-webkit-slider-thumb {
 .analysis-desc { font-size: 11px; color: var(--text-muted); }
 
 /* ─── Map Popup ──────────────────────────────────────────── */
+/* ─── Map background always dark (tiles fallback) ───────── */
+.leaflet-container {
+  background: #0d1929 !important;
+}
+.leaflet-tile-pane {
+  opacity: 1;
+}
+
 .leaflet-popup-content-wrapper {
   background: rgba(15,23,42,0.95) !important;
   backdrop-filter: blur(12px);

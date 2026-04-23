@@ -34,10 +34,9 @@ L.Icon.Default.mergeOptions({
 
 // ─── Basemap tile URLs ─────────────────────────────────────
 const BASEMAP_URLS = {
-  dark:      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-  streets:   'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  osm:       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  dark:      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+  streets:   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  satellite: 'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
 };
 
 // ─── Init ─────────────────────────────────────────────────
@@ -146,9 +145,16 @@ function updateTopbar(page) {
 
 // ─── Map Creation ──────────────────────────────────────────
 function createBasemapLayer(type) {
-  return L.tileLayer(BASEMAP_URLS[type] || BASEMAP_URLS.dark, {
-    maxZoom: 19,
-    subdomains: type === 'satellite' ? [] : ['a','b','c'],
+  const cfg = {
+    dark:      { url: BASEMAP_URLS.dark,      subdomains: ['a','b','c','d'], maxZoom: 19 },
+    streets:   { url: BASEMAP_URLS.streets,   subdomains: '',                maxZoom: 19 },
+    satellite: { url: BASEMAP_URLS.satellite, subdomains: ['0','1','2','3'], maxZoom: 20 },
+  }[type] || { url: BASEMAP_URLS.dark, subdomains: ['a','b','c','d'], maxZoom: 19 };
+
+  return L.tileLayer(cfg.url, {
+    maxZoom: cfg.maxZoom,
+    subdomains: cfg.subdomains,
+    crossOrigin: true,
   });
 }
 
@@ -387,76 +393,58 @@ function processFiles(files, fromPopup) {
   });
 }
 
-function addGeoJSONToMap(geojson, name) {
-  const color      = LAYER_COLORS[colorIdx++ % LAYER_COLORS.length];
-  const featCount  = geojson.features ? geojson.features.length : '?';
-
-  const gjLayer = L.geoJSON(geojson, {
-    style: () => ({
-      color,
-      fillColor: color,
-      fillOpacity: 0.25,
-      weight: 2,
-      opacity: 0.9,
+function makeGeoJSONLayer(geojson, name, color) {
+  return L.geoJSON(geojson, {
+    style: () => ({ color, fillColor: color, fillOpacity: 0.25, weight: 2, opacity: 0.9 }),
+    pointToLayer: (_feat, latlng) => L.circleMarker(latlng, {
+      radius: 7, fillColor: color, color: '#fff', weight: 1.5, fillOpacity: 0.85,
     }),
-    pointToLayer: (feature, latlng) => {
-      return L.circleMarker(latlng, {
-        radius: 7,
-        fillColor: color,
-        color: '#fff',
-        weight: 1.5,
-        opacity: 1,
-        fillOpacity: 0.85,
-      });
-    },
     onEachFeature: (feature, layer) => {
       const props = feature.properties || {};
-      const rows  = Object.entries(props)
-        .slice(0, 8)
+      const rows  = Object.entries(props).slice(0, 10)
         .map(([k, v]) => `<div class="feature-attr"><span class="feature-attr-key">${k}</span><span class="feature-attr-val">${v ?? '—'}</span></div>`)
         .join('');
-      layer.bindPopup(`
-        <div class="feature-popup">
-          <div class="feature-popup-title">📌 ${name}</div>
-          ${rows || '<div class="feature-attr"><span class="feature-attr-key">لا توجد خصائص</span></div>'}
-        </div>`, { maxWidth: 300 });
+      layer.bindPopup(`<div class="feature-popup">
+        <div class="feature-popup-title">📌 ${name}</div>
+        ${rows || '<div class="feature-attr"><span class="feature-attr-key">لا توجد خصائص</span></div>'}
+      </div>`, { maxWidth: 320 });
     },
   });
+}
 
-  // Add to both maps
+function addGeoJSONToMap(geojson, name) {
+  const color     = LAYER_COLORS[colorIdx++ % LAYER_COLORS.length];
+  const featCount = geojson.features ? geojson.features.length : '?';
+
+  // ── Create a SEPARATE layer instance per map ──────────
+  const layersByMap = {};
+  let   boundsRef   = null;
+
   ['dashboard', 'main'].forEach(key => {
     const map = STATE.maps[key];
     if (!map) return;
+    const lyr = makeGeoJSONLayer(geojson, name, color);  // NEW instance each time
     if (!map._uploadedGroup) map._uploadedGroup = L.layerGroup().addTo(map);
-    map._uploadedGroup.addLayer(gjLayer);
+    map._uploadedGroup.addLayer(lyr);
+    layersByMap[key] = lyr;
+    if (!boundsRef) {
+      try { const b = lyr.getBounds(); if (b.isValid()) boundsRef = b; } catch {}
+    }
   });
 
-  // Fly to the data extent
-  const targetMap = STATE.maps.main || STATE.maps.dashboard;
-  if (targetMap) {
-    try {
-      const bounds = gjLayer.getBounds();
-      if (bounds.isValid()) targetMap.flyToBounds(bounds, { padding: [40, 40], maxZoom: 14, duration: 1.2 });
-    } catch {}
+  // ── Fly map to data ───────────────────────────────────
+  const flyMap = STATE.maps[STATE.currentPage] || STATE.maps.dashboard || STATE.maps.main;
+  if (flyMap && boundsRef) {
+    flyMap.flyToBounds(boundsRef, { padding: [50, 50], maxZoom: 14, duration: 1.5 });
   }
 
-  // Add to layer panel
+  // ── UI updates ────────────────────────────────────────
   addUploadedLayerToPanel(name, color, featCount);
-
-  // Add to data table
   addRowToDataTable(name, geojson, color);
-
-  // Save to state
-  STATE.uploadedLayers.push({ name, geojson, color, layer: gjLayer });
+  STATE.uploadedLayers.push({ name, geojson, color, layersByMap });
 
   showToast(`✅ تم رفع "${name}" — ${featCount} معلم`, 'success');
-
-  // Navigate to map view to show the data
-  if (STATE.currentPage !== 'map') {
-    setTimeout(() => {
-      showToast('اضغط على "عرض الخريطة" لرؤية الطبقة', 'info');
-    }, 1500);
-  }
+  setTimeout(() => showToast('انتقل إلى "عرض الخريطة" لرؤية الطبقة كاملاً', 'info'), 1800);
 
   updateAttrTable(geojson, name);
 }
@@ -500,11 +488,18 @@ function flyToLayer(name) {
   setTimeout(() => {
     const map = STATE.maps.main;
     if (!map) return;
+    // إذا لم تكن الطبقة موجودة في خريطة map بعد، أضفها الآن
+    if (!entry.layersByMap.main) {
+      const lyr = makeGeoJSONLayer(entry.geojson, entry.name, entry.color);
+      if (!map._uploadedGroup) map._uploadedGroup = L.layerGroup().addTo(map);
+      map._uploadedGroup.addLayer(lyr);
+      entry.layersByMap.main = lyr;
+    }
     try {
-      const bounds = entry.layer.getBounds();
-      if (bounds.isValid()) map.flyToBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      const bounds = entry.layersByMap.main.getBounds();
+      if (bounds.isValid()) map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 14 });
     } catch {}
-  }, 300);
+  }, 400);
 }
 
 function updateAttrTable(geojson, name) {
@@ -546,9 +541,17 @@ function showUploadBar(fromPopup, pct) {
 }
 
 function startUploadPopup() {
-  const input = document.getElementById('file-input');
-  if (!input.files.length) { showToast('اختر ملفاً أولاً', 'error'); return; }
-  processFiles(input.files, true);
+  // الأولوية: ملفات مسحوبة بالـ drag-drop، ثم ملفات مختارة من file picker
+  const dropZone   = document.getElementById('popup-drop-zone');
+  const input      = document.getElementById('file-input');
+  const droppedFiles = dropZone?._droppedFiles;
+  const files = (droppedFiles && droppedFiles.length) ? droppedFiles : input?.files;
+
+  if (!files || !files.length) {
+    showToast('اختر ملفاً أولاً أو اسحبه إلى المربع أعلاه', 'error');
+    return;
+  }
+  processFiles(files, true);
 }
 
 // ─── Data Table ───────────────────────────────────────────

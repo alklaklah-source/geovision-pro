@@ -905,11 +905,13 @@
       <button class="close-btn" onclick="closePopup('upload-popup')">✕</button>
     </div>
 
-    <div class="upload-zone" style="padding:28px" onclick="document.getElementById('file-input').click()">
-      <input type="file" id="file-input" multiple accept=".shp,.shx,.dbf,.prj,.geojson,.kml" style="display:none">
+    <div class="upload-zone" id="popup-drop-zone" style="padding:28px" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" multiple accept=".shp,.shx,.dbf,.prj,.geojson,.json,.kml" style="display:none"
+        onchange="document.getElementById('popup-file-names').textContent=Array.from(this.files).map(f=>f.name).join(' | ')">
       <div class="upload-icon">📂</div>
-      <div class="upload-title">اسحب ملفات Shapefile</div>
+      <div class="upload-title">اسحب الملفات هنا أو انقر للاختيار</div>
       <div class="upload-sub">يجب رفع الملفات معاً: .shp + .shx + .dbf + .prj</div>
+      <div id="popup-file-names" style="margin-top:8px;font-size:11px;color:#60A5FA;word-break:break-all;min-height:16px"></div>
       <div class="upload-formats">
         <span class="format-tag">.shp</span><span class="format-tag">.shx</span>
         <span class="format-tag">.dbf</span><span class="format-tag">.prj</span>
@@ -1009,41 +1011,39 @@
 
 <script src="js/app.js"></script>
 <script>
-  // Extra inline helpers
-  function startUploadPopup() {
-    const bar = document.getElementById('up2');
-    const txt = document.getElementById('up2-txt');
-    const wrap = document.getElementById('upload-progress-wrap-popup');
-    wrap.style.display = 'block';
-    let p = 0;
-    const iv = setInterval(() => {
-      p += Math.random() * 18;
-      if (p >= 100) { p = 100; clearInterval(iv); closePopup('upload-popup'); showToast('تم رفع الملف وتحويله إلى GeoJSON!', 'success'); }
-      bar.style.width = p.toFixed(0) + '%';
-      txt.textContent = p.toFixed(0) + '%';
-    }, 180);
-  }
-
-  function handleFilesInline(files) {
-    if (!files.length) return;
-    showToast('جاري رفع: ' + Array.from(files).map(f => f.name).join(', '), 'info');
-    simulateUpload();
-  }
-
   function createProject() {
     closePopup('new-project-popup');
     showToast('تم إنشاء المشروع بنجاح!', 'success');
   }
 
-  function filterTable(val) { /* client-side filter placeholder */ }
+  function filterTable(val) {}
 
-  // Init upload zone after page loads
   document.addEventListener('DOMContentLoaded', () => {
+    // ── Drag-drop: صفحة البيانات ──────────────────────
     const uz = document.getElementById('upload-zone');
     if (uz) {
-      uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dragging'); });
-      uz.addEventListener('dragleave', () => uz.classList.remove('dragging'));
-      uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('dragging'); handleFilesInline(e.dataTransfer.files); });
+      uz.addEventListener('dragover',  e => { e.preventDefault(); uz.classList.add('dragging'); });
+      uz.addEventListener('dragleave', ()=> uz.classList.remove('dragging'));
+      uz.addEventListener('drop', e => {
+        e.preventDefault(); uz.classList.remove('dragging');
+        processFiles(e.dataTransfer.files, false);
+      });
+    }
+
+    // ── Drag-drop: popup الرفع ─────────────────────────
+    const pz = document.getElementById('popup-drop-zone');
+    if (pz) {
+      pz.addEventListener('dragover',  e => { e.preventDefault(); e.stopPropagation(); pz.classList.add('dragging'); });
+      pz.addEventListener('dragleave', ()=> pz.classList.remove('dragging'));
+      pz.addEventListener('drop', e => {
+        e.preventDefault(); e.stopPropagation(); pz.classList.remove('dragging');
+        const files = e.dataTransfer.files;
+        // اعرض أسماء الملفات
+        document.getElementById('popup-file-names').textContent =
+          Array.from(files).map(f => f.name).join(' | ');
+        // خزّن الملفات مؤقتاً للاستخدام عند الضغط على زر الرفع
+        pz._droppedFiles = files;
+      });
     }
   });
 </script>
